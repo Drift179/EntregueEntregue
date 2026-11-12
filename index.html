@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EtregueEntregue | Logística e Entregas em Tempo Real</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .fade-in {
+            animation: fadeIn 0.25s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col selection:bg-orange-500 selection:text-white">
+
+    <!-- Container de Notificações Toast -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- Modal de Confirmação Customizado -->
+    <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 fade-in border border-slate-100">
+            <div class="flex items-center gap-3 text-rose-600 mb-3">
+                <div class="p-2.5 bg-rose-50 rounded-xl">
+                    <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900" id="modal-title">Cancelar Pedido</h3>
+            </div>
+            <p class="text-slate-600 text-sm mb-6 leading-relaxed" id="modal-message">
+                Tem certeza que deseja cancelar e remover este pedido do sistema?
+            </p>
+            <div class="flex items-center justify-end gap-3">
+                <button id="modal-cancel-btn" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer">
+                    Voltar
+                </button>
+                <button id="modal-confirm-btn" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 shadow-sm shadow-rose-200 transition cursor-pointer">
+                    Sim, Cancelar Pedido
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Guia de Configuração Rápida do Firebase -->
+    <div id="firebase-help-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 fade-in border border-slate-200 my-8">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 bg-orange-50 text-orange-600 rounded-xl">
+                        <i data-lucide="database" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">Guia Rápido do Firebase (EtregueEntregue)</h3>
+                        <p class="text-xs text-slate-500">Projeto conectado: <span class="font-mono font-semibold text-slate-700">controler-5ccad</span></p>
+                    </div>
+                </div>
+                <button onclick="toggleHelpModal(false)" class="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition cursor-pointer">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="py-5 space-y-5 text-sm text-slate-600">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-2">
+                    <h4 class="font-bold text-slate-900 flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">1</span>
+                        Ativar Login no Firebase Authentication
+                    </h4>
+                    <p class="text-xs leading-relaxed">No console do Firebase (<span class="font-mono text-indigo-600">Authentication → Sign-in method</span>), habilite os provedores:</p>
+                    <ul class="list-disc list-inside text-xs space-y-1 text-slate-700 font-medium">
+                        <li><strong>E-mail/senha</strong> (Ativar)</li>
+                        <li><strong>Google</strong> (Ativar e selecionar e-mail de suporte)</li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-2">
+                    <h4 class="font-bold text-slate-900 flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center">2</span>
+                        Regras do Realtime Database (<span class="font-mono text-xs">/pedidos</span> e <span class="font-mono text-xs">/usuarios</span>)
+                    </h4>
+                    <p class="text-xs leading-relaxed">Em <span class="font-mono text-emerald-700">Realtime Database → Regras</span>, cole a estrutura abaixo para permitir leitura/escrita para usuários autenticados e proteção ao entregador oficial:</p>
+                    <pre class="bg-slate-900 text-emerald-300 p-3.5 rounded-xl text-xs font-mono overflow-x-auto leading-relaxed">{
+  "rules": {
+    "usuarios": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "pedidos": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}</pre>
+                </div>
+
+                <div class="bg-amber-50 p-3.5 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+                    <div>
+                        <strong>Conta Exclusiva do Entregador:</strong> Apenas o e-mail <span class="font-mono font-bold">a7902915@gmail.com</span> tem permissão para acessar o Painel do Entregador (via Google ou E-mail/Senha).
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t border-slate-100">
+                <button onclick="toggleHelpModal(false)" class="px-5 py-2.5 rounded-xl text-sm font-semibold bg-slate-900 hover:bg-slate-800 text-white transition cursor-pointer">
+                    Entendi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- CABEÇALHO PRINCIPAL                        -->
+    <!-- ========================================== -->
+    <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-wrap items-center justify-between py-3.5 gap-3">
+                
+                <!-- Marca EtregueEntregue -->
+                <div class="flex items-center gap-3">
+                    <div class="bg-gradient-to-tr from-orange-500 to-amber-500 p-2.5 rounded-xl shadow-lg shadow-orange-950/40">
+                        <i data-lucide="truck" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl font-extrabold tracking-tight text-white">Etregue<span class="text-orange-400">Entregue</span></span>
+                            <span id="rtdb-status-badge" class="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                Tempo Real
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400 hidden sm:block">Conectando vendedores e entregas em tempo real</p>
+                    </div>
+                </div>
+
+                <!-- Controles à Direita (Guia Firebase + Info do Usuário Logado) -->
+                <div class="flex items-center gap-2.5 sm:gap-3">
+                    <button onclick="toggleHelpModal(true)" class="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700 rounded-xl transition cursor-pointer" title="Ver instruções de configuração do Firebase">
+                        <i data-lucide="settings" class="w-3.5 h-3.5 text-orange-400"></i>
+                        <span class="hidden md:inline">Configurar Firebase</span>
+                    </button>
+
+                    <!-- Área do Usuário Autenticado (Oculta na tela de login) -->
+                    <div id="header-user-area" class="hidden flex items-center gap-3 pl-2 sm:pl-3 border-l border-slate-700/80">
+                        <div class="text-right hidden sm:block">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <span id="header-user-name" class="text-sm font-bold text-white leading-none">Usuário</span>
+                                <span id="header-role-badge" class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                    Vendedor
+                                </span>
+                            </div>
+                            <p id="header-user-email" class="text-[11px] text-slate-400 mt-1">email@exemplo.com</p>
+                        </div>
+
+                        <button id="btn-logout" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-500/15 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 transition cursor-pointer">
+                            <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                            <span>Sair</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- TELA DE CARREGAMENTO INICIAL (AUTH CHECK)  -->
+    <!-- ========================================== -->
+    <div id="loading-screen" class="flex-1 flex flex-col items-center justify-center p-8 text-center">
+        <div class="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-sm font-semibold text-slate-600">Conectando ao EtregueEntregue...</p>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TELA DE AUTENTICAÇÃO (LOGIN / CADASTRO)    -->
+    <!-- ========================================== -->
+    <main id="auth-screen" class="hidden flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div class="max-w-md w-full bg-white rounded-3xl shadow-xl shadow-slate-200/70 border border-slate-200/80 overflow-hidden fade-in">
+            
+            <!-- Topo do Card de Login -->
+            <div class="bg-slate-900 p-6 text-center text-white relative overflow-hidden">
+                <div class="inline-flex p-3 bg-gradient-to-tr from-orange-500 to-amber-500 rounded-2xl shadow-lg mb-3">
+                    <i data-lucide="package-check" class="w-7 h-7 text-white"></i>
+                </div>
+                <h1 class="text-2xl font-extrabold tracking-tight">Etregue<span class="text-orange-400">Entregue</span></h1>
+                <p class="text-xs text-slate-300 mt-1">Escolha seu perfil de acesso para continuar</p>
+            </div>
+
+            <!-- Seletor de Perfil (Vendedor vs Entregador Exclusivo) -->
+            <div class="p-2 bg-slate-100 grid grid-cols-2 gap-1.5 border-b border-slate-200">
+                <button id="auth-role-seller" type="button" onclick="selectAuthRole('vendedor')" class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all bg-white text-indigo-700 shadow-sm cursor-pointer">
+                    <i data-lucide="store" class="w-4 h-4"></i>
+                    <span>Sou Vendedor</span>
+                </button>
+                <button id="auth-role-courier" type="button" onclick="selectAuthRole('entregador')" class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all text-slate-500 hover:text-slate-800 cursor-pointer">
+                    <i data-lucide="bike" class="w-4 h-4"></i>
+                    <span>Sou Entregador</span>
+                </button>
+            </div>
+
+            <div class="p-6 sm:p-7 space-y-5">
+                
+                <!-- Alerta de Erro Amigável -->
+                <div id="auth-error-box" class="hidden bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-xs font-medium flex items-start gap-2.5">
+                    <i data-lucide="alert-circle" class="w-4 h-4 text-rose-600 shrink-0 mt-0.5"></i>
+                    <span id="auth-error-text">Mensagem de erro</span>
+                </div>
+
+                <!-- ===================================== -->
+                <!-- MODO 1: FORMULÁRIO DO VENDEDOR        -->
+                <!-- ===================================== -->
+                <div id="seller-auth-panel" class="space-y-4">
+                    <!-- Sub-abas Entrar / Criar Conta -->
+                    <div class="flex items-center justify-center gap-4 border-b border-slate-100 pb-3">
+                        <button type="button" id="seller-subtab-login" onclick="toggleSellerMode('login')" class="text-sm font-bold text-indigo-600 border-b-2 border-indigo-600 pb-1 cursor-pointer">
+                            Entrar na Conta
+                        </button>
+                        <button type="button" id="seller-subtab-register" onclick="toggleSellerMode('register')" class="text-sm font-semibold text-slate-400 hover:text-slate-700 pb-1 cursor-pointer">
+                            Criar Conta de Vendedor
+                        </button>
+                    </div>
+
+                    <form id="seller-auth-form" class="space-y-3.5">
+                        <!-- Campo Nome (apenas no cadastro) -->
+                        <div id="seller-name-field" class="hidden">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Nome da Loja ou Vendedor</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                    <i data-lucide="user" class="w-4 h-4"></i>
+                                </div>
+                                <input type="text" id="seller-name" placeholder="Ex: Pizzaria Central ou João Silva"
+                                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-indigo-500 transition">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">E-mail</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                    <i data-lucide="mail" class="w-4 h-4"></i>
+                                </div>
+                                <input type="email" id="seller-email" required placeholder="seu@email.com"
+                                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-indigo-500 transition">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Senha</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                    <i data-lucide="lock" class="w-4 h-4"></i>
+                                </div>
+                                <input type="password" id="seller-password" required minlength="6" placeholder="Mínimo 6 caracteres"
+                                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-indigo-500 transition">
+                            </div>
+                        </div>
+
+                        <button type="submit" id="seller-submit-btn" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-600/20 transition flex items-center justify-center gap-2 cursor-pointer">
+                            <i data-lucide="log-in" class="w-4 h-4"></i>
+                            <span>Entrar como Vendedor</span>
+                        </button>
+                    </form>
+
+                    <div class="relative flex py-1 items-center">
+                        <div class="flex-grow border-t border-slate-200"></div>
+                        <span class="flex-shrink mx-3 text-xs font-semibold text-slate-400 uppercase">ou</span>
+                        <div class="flex-grow border-t border-slate-200"></div>
+                    </div>
+
+                    <!-- Botão Google Vendedor -->
+                    <button type="button" onclick="handleGoogleSignIn('vendedor')" class="w-full py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm rounded-xl border border-slate-300 shadow-sm transition flex items-center justify-center gap-2.5 cursor-pointer">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z"/>
+                            <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z"/>
+                            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"/>
+                        </svg>
+                        <span>Entrar com Google (Vendedor)</span>
+                    </button>
+                </div>
+
+                <!-- ===================================== -->
+                <!-- MODO 2: FORMULÁRIO DO ENTREGADOR      -->
+                <!-- ===================================== -->
+                <div id="courier-auth-panel" class="hidden space-y-4">
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs text-emerald-900 space-y-1">
+                        <div class="font-bold flex items-center gap-1.5 text-emerald-800">
+                            <i data-lucide="shield-alert" class="w-4 h-4 text-emerald-600"></i>
+                            <span>Área Exclusiva do Entregador Oficial</span>
+                        </div>
+                        <p class="text-emerald-700 leading-relaxed">
+                            O painel de entregas é restrito exclusivamente ao administrador autorizado (<span class="font-mono font-semibold">a7902915@gmail.com</span>).
+                        </p>
+                    </div>
+
+                    <form id="courier-auth-form" class="space-y-3.5">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">E-mail Autorizado</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-emerald-600">
+                                    <i data-lucide="mail-check" class="w-4 h-4"></i>
+                                </div>
+                                <input type="email" id="courier-email" required value="a7902915@gmail.com"
+                                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:bg-white focus:border-emerald-500 transition">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Senha de Acesso</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                    <i data-lucide="key-round" class="w-4 h-4"></i>
+                                </div>
+                                <input type="password" id="courier-password" required placeholder="Digite a senha do entregador"
+                                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-emerald-500 transition">
+                            </div>
+                        </div>
+
+                        <button type="submit" id="courier-submit-btn" class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer">
+                            <i data-lucide="bike" class="w-4 h-4"></i>
+                            <span>Acessar Painel do Entregador</span>
+                        </button>
+                    </form>
+
+                    <div class="relative flex py-1 items-center">
+                        <div class="flex-grow border-t border-slate-200"></div>
+                        <span class="flex-shrink mx-3 text-xs font-semibold text-slate-400 uppercase">ou acesso rápido</span>
+                        <div class="flex-grow border-t border-slate-200"></div>
+                    </div>
+
+                    <!-- Botão Google Entregador -->
+                    <button type="button" onclick="handleGoogleSignIn('entregador')" class="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl shadow-sm transition flex items-center justify-center gap-2.5 cursor-pointer">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z"/>
+                            <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z"/>
+                            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"/>
+                        </svg>
+                        <span>Entrar com Google Oficial</span>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- PAINEL PRINCIPAL LOGADO                    -->
+    <!-- ========================================== -->
+    <main id="app-screen" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+        <!-- ========================================== -->
+        <!-- VISÃO 1: PAINEL DO VENDEDOR                -->
+        <!-- ========================================== -->
+        <section id="view-seller" class="hidden fade-in space-y-8">
+            
+            <!-- Banner de Boas-Vindas do Vendedor -->
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 border border-indigo-800/40">
+                <div class="space-y-1">
+                    <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-300 bg-orange-500/15 px-2.5 py-1 rounded-full border border-orange-500/30 mb-1">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Sincronizado em Tempo Real com o Entregador
+                    </div>
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight">Olá, <span id="seller-welcome-name" class="text-orange-400">Vendedor</span>!</h1>
+                    <p class="text-sm text-slate-300 max-w-2xl">Cadastre os detalhes do produto, local de retirada, endereço de entrega e o valor que vai pagar. O pedido aparece instantaneamente para o entregador.</p>
+                </div>
+                <div class="flex items-center gap-4 bg-white/10 backdrop-blur-sm px-4 py-3 rounded-xl border border-white/10 shrink-0">
+                    <div>
+                        <p class="text-xs text-slate-300">Seus pedidos</p>
+                        <p id="seller-total-orders" class="text-2xl font-extrabold text-white">0</p>
+                    </div>
+                    <div class="h-8 w-px bg-white/15"></div>
+                    <div>
+                        <p class="text-xs text-slate-300">Em andamento</p>
+                        <p id="seller-active-orders" class="text-2xl font-extrabold text-orange-400">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                <!-- Coluna Esquerda: Formulário de Novo Pedido -->
+                <div class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 sm:p-6">
+                    <div class="flex items-center gap-2.5 pb-4 mb-5 border-b border-slate-100">
+                        <div class="p-2 bg-orange-50 text-orange-600 rounded-xl">
+                            <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900">Novo Pedido de Entrega</h2>
+                            <p class="text-xs text-slate-500">Envio direto para o banco em tempo real</p>
+                        </div>
+                    </div>
+
+                    <form id="new-order-form" class="space-y-4">
+                        <!-- Descrição sobre Produto -->
+                        <div>
+                            <label for="product-desc" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                                Descrição sobre o Produto <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                    <i data-lucide="package" class="w-4 h-4"></i>
+                                </div>
+                                <input type="text" id="product-desc" required
+                                    placeholder="Ex: 2 Pizzas Grandes, Caixa de eletrônicos, Encomenda..."
+                                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition">
+                            </div>
+                        </div>
+
+                        <!-- Local de pegar o produto -->
+                        <div>
+                            <label for="pickup-location" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                                Local de pegar o produto (Retirada) <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-orange-500">
+                                    <i data-lucide="map-pin" class="w-4 h-4"></i>
+                                </div>
+                                <input type="text" id="pickup-location" required
+                                    placeholder="Endereço da sua loja ou local de coleta"
+                                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition">
+                            </div>
+                        </div>
+
+                        <!-- Local aonde é pra entregar -->
+                        <div>
+                            <label for="delivery-location" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                                Local aonde é pra entregar (Destino) <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-emerald-600">
+                                    <i data-lucide="navigation" class="w-4 h-4"></i>
+                                </div>
+                                <input type="text" id="delivery-location" required
+                                    placeholder="Rua, número, bairro e nome do cliente final"
+                                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition">
+                            </div>
+                        </div>
+
+                        <!-- Preço que vai pagar -->
+                        <div>
+                            <label for="offer-price" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                                Preço que vai pagar <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                    <span class="text-sm font-bold text-emerald-600">R$</span>
+                                </div>
+                                <input type="text" id="offer-price" inputmode="numeric" required
+                                    placeholder="0,00"
+                                    class="w-full pl-10 pr-4 py-2.5 bg-emerald-50/40 border border-emerald-200 rounded-xl text-base font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition">
+                            </div>
+                            <!-- Atalhos Rápidos de Valor -->
+                            <div class="flex flex-wrap items-center gap-1.5 mt-2">
+                                <span class="text-xs text-slate-400 mr-1">Atalhos:</span>
+                                <button type="button" onclick="setQuickPrice(1000)" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 text-slate-700 transition cursor-pointer">R$ 10</button>
+                                <button type="button" onclick="setQuickPrice(1500)" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 text-slate-700 transition cursor-pointer">R$ 15</button>
+                                <button type="button" onclick="setQuickPrice(2500)" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 text-slate-700 transition cursor-pointer">R$ 25</button>
+                                <button type="button" onclick="setQuickPrice(4000)" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 text-slate-700 transition cursor-pointer">R$ 40</button>
+                            </div>
+                        </div>
+
+                        <div class="pt-2">
+                            <button type="submit" id="btn-publish-order" class="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.99] text-white font-bold py-3 px-5 rounded-xl shadow-md shadow-orange-500/25 transition-all cursor-pointer">
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                                <span>Enviar Pedido Agora</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Coluna Direita: Lista de Pedidos do Vendedor em Tempo Real -->
+                <div class="lg:col-span-7 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div class="flex items-center gap-2.5">
+                            <div class="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                                <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-bold text-slate-900">Meus Pedidos Enviados</h2>
+                                <p class="text-xs text-slate-500">Atualização automática ao vivo</p>
+                            </div>
+                        </div>
+
+                        <select id="seller-filter" onchange="renderDashboard()" class="text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                            <option value="ALL">Todos os pedidos</option>
+                            <option value="ACTIVE">Em andamento / Aguardando</option>
+                            <option value="DELIVERED">Entregues</option>
+                        </select>
+                    </div>
+
+                    <div id="seller-orders-list" class="space-y-4">
+                        <!-- Preenchido via Firebase onValue -->
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- ================================================ -->
+        <!-- VISÃO 2: PAINEL EXCLUSIVO DO ENTREGADOR          -->
+        <!-- ================================================ -->
+        <section id="view-courier" class="hidden fade-in space-y-8">
+            
+            <!-- Cards de Resumo em Tempo Real -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Card Ganhos Concluídos -->
+                <div class="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-5 text-white shadow-md shadow-emerald-900/10 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-emerald-100">Ganhos Concluídos</p>
+                        <h2 id="courier-earnings" class="text-3xl font-extrabold mt-1">R$ 0,00</h2>
+                        <p class="text-xs text-emerald-100/90 mt-1 flex items-center gap-1">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                            Entregas finalizadas com sucesso
+                        </p>
+                    </div>
+                    <div class="p-3.5 bg-white/15 rounded-2xl backdrop-blur-sm">
+                        <i data-lucide="wallet" class="w-8 h-8 text-white"></i>
+                    </div>
+                </div>
+
+                <!-- Card Entregas Ativas -->
+                <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Entregas Ativas</p>
+                        <h2 id="courier-active-count" class="text-3xl font-extrabold text-slate-900 mt-1">0</h2>
+                        <p class="text-xs text-orange-600 font-medium mt-1">Em rota de coleta ou entrega</p>
+                    </div>
+                    <div class="p-3.5 bg-orange-50 text-orange-600 rounded-2xl">
+                        <i data-lucide="bike" class="w-8 h-8"></i>
+                    </div>
+                </div>
+
+                <!-- Card Pedidos Disponíveis -->
+                <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Pedidos Disponíveis</p>
+                        <h2 id="courier-available-count" class="text-3xl font-extrabold text-indigo-600 mt-1">0</h2>
+                        <p class="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                            Online • Tempo Real
+                        </p>
+                    </div>
+                    <div class="p-3.5 bg-indigo-50 text-indigo-600 rounded-2xl">
+                        <i data-lucide="radar" class="w-8 h-8"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção 1: Minhas Entregas em Andamento -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-orange-500 animate-ping"></span>
+                        <h2 class="text-lg font-bold text-slate-900">Minhas Entregas em Andamento</h2>
+                    </div>
+                    <span class="text-xs font-medium text-slate-500">Atualize o status para o vendedor acompanhar</span>
+                </div>
+
+                <div id="courier-active-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Renderizado via Firebase onValue -->
+                </div>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <!-- Seção 2: Mural de Pedidos Disponíveis em Tempo Real -->
+            <div class="space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5">
+                        <div class="p-2 bg-indigo-100 text-indigo-700 rounded-xl">
+                            <i data-lucide="bell-ring" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900">Mural de Pedidos Disponíveis em Tempo Real</h2>
+                            <p class="text-xs text-slate-500">Novos pedidos dos vendedores aparecem automaticamente aqui</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="btn-toggle-sound" onclick="toggleSoundAlert()" class="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer">
+                            <i data-lucide="volume-2" class="w-3.5 h-3.5"></i>
+                            <span id="sound-status-label">Alerta Sonoro: Ativo</span>
+                        </button>
+                        <select id="courier-sort" onchange="renderDashboard()" class="text-xs font-semibold bg-white border border-slate-200 text-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                            <option value="NEWEST">Mais recentes</option>
+                            <option value="HIGHEST_PRICE">Maior valor (R$)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="courier-available-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <!-- Renderizado via Firebase onValue -->
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Rodapé -->
+    <footer class="bg-white border-t border-slate-200 py-5 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+            <p class="font-semibold text-slate-700">EtregueEntregue &copy; 2026 — Conectado ao Firebase Realtime Database</p>
+            <button onclick="toggleHelpModal(true)" class="text-indigo-600 hover:underline font-medium cursor-pointer">
+                Precisa ativar Auth ou Regras do Banco? Clique aqui
+            </button>
+        </div>
+    </footer>
+
+    <!-- ========================================================== -->
+    <!-- MÓDULO JAVASCRIPT COM FIREBASE v10.12.2 (AUTH + RTDB)      -->
+    <!-- ========================================================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { 
+            getAuth, 
+            onAuthStateChanged, 
+            signInWithEmailAndPassword, 
+            createUserWithEmailAndPassword, 
+            signInWithPopup, 
+            GoogleAuthProvider, 
+            signOut,
+            updateProfile
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { 
+            getDatabase, 
+            ref, 
+            push, 
+            set, 
+            update, 
+            remove, 
+            onValue, 
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+        // Configuração obrigatória do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCKcIHgx9BtYbhJ_b46PmLPwZdI5tweQzk",
+            authDomain: "controler-5ccad.firebaseapp.com",
+            databaseURL: "https://controler-5ccad-default-rtdb.firebaseio.com",
+            projectId: "controler-5ccad",
+            storageBucket: "controler-5ccad.firebasestorage.app",
+            messagingSenderId: "334904759641",
+            appId: "1:334904759641:web:fb47aa85facb2418c9a848",
+            measurementId: "G-VVE0QXDKT4"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        const googleProvider = new GoogleAuthProvider();
+
+        // Constante de E-mail Exclusivo do Entregador
+        const AUTHORIZED_COURIER_EMAIL = "a7902915@gmail.com";
+
+        // Estado Global da Aplicação
+        let currentUser = null;
+        let currentUserRole = null; // 'vendedor' ou 'entregador'
+        let selectedAuthTabRole = 'vendedor'; // Aba selecionada na tela de login
+        let sellerAuthMode = 'login'; // 'login' ou 'register'
+        let allOrders = [];
+        let ordersUnsubscribe = null;
+        let orderIdToCancel = null;
+        let soundEnabled = true;
+        let knownWaitingIds = new Set();
+        let initialLoadComplete = false;
+
+        // ==========================================================
+        // FUNÇÕES AUXILIARES DE UI E FORMATAÇÃO
+        // ==========================================================
+        window.toggleHelpModal = (show) => {
+            const modal = document.getElementById('firebase-help-modal');
+            if (show) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                lucide.createIcons({ root: modal });
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        };
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const styles = {
+                success: 'bg-slate-900 text-white border-emerald-500',
+                info: 'bg-slate-900 text-white border-indigo-500',
+                warning: 'bg-slate-900 text-white border-orange-500',
+                error: 'bg-rose-950 text-white border-rose-500'
+            };
+
+            const icons = {
+                success: '<i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400 shrink-0"></i>',
+                info: '<i data-lucide="info" class="w-5 h-5 text-indigo-400 shrink-0"></i>',
+                warning: '<i data-lucide="bell-ring" class="w-5 h-5 text-orange-400 shrink-0"></i>',
+                error: '<i data-lucide="alert-octagon" class="w-5 h-5 text-rose-400 shrink-0"></i>'
+            };
+
+            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3.5 rounded-xl shadow-xl border-l-4 ${styles[type] || styles.success} fade-in text-sm font-medium`;
+            toast.innerHTML = `${icons[type] || icons.success}<span class="flex-1">${message}</span>`;
+
+            container.appendChild(toast);
+            lucide.createIcons({ root: toast });
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(8px)';
+                toast.style.transition = 'all 0.25s ease';
+                setTimeout(() => toast.remove(), 250);
+            }, 4000);
+        }
+
+        // Alerta Sonoro Suave via Web Audio API (sem arquivos externos)
+        function playNewOrderChime() {
+            if (!soundEnabled) return;
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12); // A5
+                gain.gain.setValueAtTime(0.12, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.45);
+            } catch (e) {
+                // Ignora bloqueio de autoplay caso usuário ainda não tenha interagido
+            }
+        }
+
+        window.toggleSoundAlert = () => {
+            soundEnabled = !soundEnabled;
+            const label = document.getElementById('sound-status-label');
+            const btn = document.getElementById('btn-toggle-sound');
+            if (soundEnabled) {
+                label.textContent = 'Alerta Sonoro: Ativo';
+                btn.className = 'flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer';
+                playNewOrderChime();
+            } else {
+                label.textContent = 'Alerta Sonoro: Mudo';
+                btn.className = 'flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition cursor-pointer';
+            }
+        };
+
+        function translateFirebaseError(error) {
+            const code = error?.code || '';
+            console.error('Firebase Error:', code, error?.message);
+            switch (code) {
+                case 'auth/invalid-email':
+                    return 'O endereço de e-mail informado é inválido.';
+                case 'auth/user-disabled':
+                    return 'Esta conta foi desativada.';
+                case 'auth/user-not-found':
+                case 'auth/invalid-credential':
+                case 'auth/wrong-password':
+                    return 'E-mail ou senha incorretos. Verifique os dados ou crie uma conta.';
+                case 'auth/email-already-in-use':
+                    return 'Este e-mail já está cadastrado. Tente fazer login.';
+                case 'auth/weak-password':
+                    return 'A senha deve ter pelo menos 6 caracteres.';
+                case 'auth/operation-not-allowed':
+                    return 'Provedor de login desativado no Firebase Console. Clique em "Configurar Firebase" no topo para ativar E-mail/Senha e Google.';
+                case 'auth/popup-closed-by-user':
+                    return 'A janela de login com Google foi fechada antes de concluir.';
+                case 'auth/unauthorized-domain':
+                    return 'Domínio não autorizado no Firebase Authentication. Adicione este domínio em Authentication → Settings → Authorized domains.';
+                case 'PERMISSION_DENIED':
+                case 'permission-denied':
+                    return 'Permissão negada no Realtime Database. Clique em "Configurar Firebase" no topo e atualize as regras do banco.';
+                default:
+                    return error?.message || 'Ocorreu um erro inesperado na comunicação com o Firebase.';
+            }
+        }
+
+        function showAuthError(msg) {
+            const box = document.getElementById('auth-error-box');
+            const text = document.getElementById('auth-error-text');
+            text.textContent = msg;
+            box.classList.remove('hidden');
+            lucide.createIcons({ root: box });
+        }
+
+        function clearAuthError() {
+            document.getElementById('auth-error-box').classList.add('hidden');
+        }
+
+        function formatCurrency(value) {
+            return Number(value || 0).toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            });
+        }
+
+        function formatRelativeTime(timestamp) {
+            if (!timestamp) return 'Agora mesmo';
+            const diffSeconds = Math.floor((Date.now() - timestamp) / 1000);
+            if (diffSeconds < 60) return 'Agora mesmo';
+            const diffMinutes = Math.floor(diffSeconds / 60);
+            if (diffMinutes < 60) return `Há ${diffMinutes} min`;
+            const diffHours = Math.floor(diffMinutes / 60);
+            if (diffHours < 24) return `Há ${diffHours}h`;
+            return new Date(timestamp).toLocaleDateString('pt-BR');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        // Máscara de moeda BRL
+        const priceInput = document.getElementById('offer-price');
+        priceInput.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (!value) {
+                e.target.value = '';
+                return;
+            }
+            const numericValue = (parseInt(value, 10) / 100).toFixed(2);
+            e.target.value = numericValue.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        });
+
+        window.setQuickPrice = (cents) => {
+            priceInput.value = (cents / 100).toFixed(2).replace('.', ',');
+            priceInput.focus();
+        };
+
+        function parseCurrencyInput(str) {
+            if (!str) return 0;
+            return parseFloat(str.replace(/\./g, '').replace(',', '.')) || 0;
+        }
+
+        // ==========================================================
+        // CONTROLE DAS ABAS DA TELA DE LOGIN
+        // ==========================================================
+        window.selectAuthRole = (role) => {
+            selectedAuthTabRole = role;
+            clearAuthError();
+
+            const btnSeller = document.getElementById('auth-role-seller');
+            const btnCourier = document.getElementById('auth-role-courier');
+            const panelSeller = document.getElementById('seller-auth-panel');
+            const panelCourier = document.getElementById('courier-auth-panel');
+
+            if (role === 'vendedor') {
+                btnSeller.className = 'flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all bg-white text-indigo-700 shadow-sm cursor-pointer';
+                btnCourier.className = 'flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all text-slate-500 hover:text-slate-800 cursor-pointer';
+                panelSeller.classList.remove('hidden');
+                panelCourier.classList.add('hidden');
+            } else {
+                btnCourier.className = 'flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all bg-emerald-600 text-white shadow-sm cursor-pointer';
+                btnSeller.className = 'flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all text-slate-500 hover:text-slate-800 cursor-pointer';
+                panelCourier.classList.remove('hidden');
+                panelSeller.classList.add('hidden');
+            }
+            lucide.createIcons();
+        };
+
+        window.toggleSellerMode = (mode) => {
+            sellerAuthMode = mode;
+            clearAuthError();
+            const subLogin = document.getElementById('seller-subtab-login');
+            const subRegister = document.getElementById('seller-subtab-register');
+            const nameField = document.getElementById('seller-name-field');
+            const nameInput = document.getElementById('seller-name');
+            const submitBtn = document.getElementById('seller-submit-btn');
+
+            if (mode === 'login') {
+                subLogin.className = 'text-sm font-bold text-indigo-600 border-b-2 border-indigo-600 pb-1 cursor-pointer';
+                subRegister.className = 'text-sm font-semibold text-slate-400 hover:text-slate-700 pb-1 cursor-pointer';
+                nameField.classList.add('hidden');
+                nameInput.required = false;
+                submitBtn.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>Entrar como Vendedor</span>';
+            } else {
+                subRegister.className = 'text-sm font-bold text-indigo-600 border-b-2 border-indigo-600 pb-1 cursor-pointer';
+                subLogin.className = 'text-sm font-semibold text-slate-400 hover:text-slate-700 pb-1 cursor-pointer';
+                nameField.classList.remove('hidden');
+                nameInput.required = true;
+                submitBtn.innerHTML = '<i data-lucide="user-plus" class="w-4 h-4"></i><span>Criar Conta de Vendedor</span>';
+            }
+            lucide.createIcons();
+        };
+
+        // ==========================================================
+        // SALVAR PERFIL NO REALTIME DATABASE (/usuarios/{uid})
+        // ==========================================================
+        async function saveUserProfile(user, role, customName = null) {
+            const displayName = customName || user.displayName || (role === 'entregador' ? 'Entregador Oficial' : user.email.split('@')[0]);
+            const userRef = ref(db, `usuarios/${user.uid}`);
+            await set(userRef, {
+                uid: user.uid,
+                nome: displayName,
+                email: user.email,
+                papel: role,
+                atualizadoEm: serverTimestamp()
+            });
+            return displayName;
+        }
+
+        // ==========================================================
+        // AUTENTICAÇÃO DO VENDEDOR (E-MAIL/SENHA)
+        // ==========================================================
+        document.getElementById('seller-auth-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearAuthError();
+
+            const email = document.getElementById('seller-email').value.trim();
+            const password = document.getElementById('seller-password').value;
+            const name = document.getElementById('seller-name').value.trim();
+            const btn = document.getElementById('seller-submit-btn');
+
+            btn.disabled = true;
+            btn.classList.add('opacity-70');
+
+            try {
+                localStorage.setItem('etregue_intended_role', 'vendedor');
+                let userCredential;
+
+                if (sellerAuthMode === 'register') {
+                    if (!name) {
+                        throw { message: 'Informe o nome do vendedor ou da loja.' };
+                    }
+                    userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    await updateProfile(userCredential.user, { displayName: name });
+                    await saveUserProfile(userCredential.user, 'vendedor', name);
+                    showToast('Conta de vendedor criada com sucesso!', 'success');
+                } else {
+                    userCredential = await signInWithEmailAndPassword(auth, email, password);
+                    await saveUserProfile(userCredential.user, 'vendedor');
+                    showToast('Bem-vindo de volta!', 'success');
+                }
+            } catch (err) {
+                showAuthError(translateFirebaseError(err));
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-70');
+            }
+        });
+
+        // ==========================================================
+        // AUTENTICAÇÃO EXCLUSIVA DO ENTREGADOR (a7902915@gmail.com)
+        // ==========================================================
+        document.getElementById('courier-auth-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearAuthError();
+
+            const email = document.getElementById('courier-email').value.trim().toLowerCase();
+            const password = document.getElementById('courier-password').value;
+            const btn = document.getElementById('courier-submit-btn');
+
+            // Verificação rigorosa antes mesmo de chamar o Firebase
+            if (email !== AUTHORIZED_COURIER_EMAIL.toLowerCase()) {
+                showAuthError(`Acesso bloqueado! Apenas o e-mail oficial (${AUTHORIZED_COURIER_EMAIL}) pode acessar o painel do entregador.`);
+                return;
+            }
+
+            btn.disabled = true;
+            btn.classList.add('opacity-70');
+
+            try {
+                localStorage.setItem('etregue_intended_role', 'entregador');
+                let userCredential;
+
+                try {
+                    // Tenta fazer login normalmente
+                    userCredential = await signInWithEmailAndPassword(auth, email, password);
+                } catch (loginErr) {
+                    // Se a conta oficial ainda não foi criada no Firebase Auth, cria automaticamente com a senha informada
+                    if (loginErr.code === 'auth/user-not-found' || loginErr.code === 'auth/invalid-credential') {
+                        try {
+                            userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                            await updateProfile(userCredential.user, { displayName: 'Entregador Oficial' });
+                            showToast('Conta oficial do entregador ativada no Firebase!', 'success');
+                        } catch (createErr) {
+                            // Se já existe e a senha estava errada, exibe erro de senha
+                            throw loginErr;
+                        }
+                    } else {
+                        throw loginErr;
+                    }
+                }
+
+                await saveUserProfile(userCredential.user, 'entregador', 'Entregador Oficial');
+                showToast('Acesso de Entregador Oficial liberado!', 'success');
+            } catch (err) {
+                showAuthError(translateFirebaseError(err));
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-70');
+            }
+        });
+
+        // ==========================================================
+        // LOGIN COM GOOGLE (VENDEDOR OU ENTREGADOR EXCLUSIVO)
+        // ==========================================================
+        window.handleGoogleSignIn = async (role) => {
+            clearAuthError();
+            try {
+                localStorage.setItem('etregue_intended_role', role);
+                const result = await signInWithPopup(auth, googleProvider);
+                const user = result.user;
+
+                // Se tentou logar na aba de Entregador, valida o e-mail autorizado
+                if (role === 'entregador' && (user.email || '').toLowerCase() !== AUTHORIZED_COURIER_EMAIL.toLowerCase()) {
+                    await signOut(auth);
+                    showAuthError(`Acesso restrito! A conta Google "${user.email}" não tem permissão de entregador. Apenas ${AUTHORIZED_COURIER_EMAIL} é autorizado.`);
+                    return;
+                }
+
+                await saveUserProfile(user, role);
+                showToast(`Conectado com Google como ${role === 'entregador' ? 'Entregador Oficial' : 'Vendedor'}!`, 'success');
+            } catch (err) {
+                showAuthError(translateFirebaseError(err));
+            }
+        };
+
+        // Botão Sair
+        document.getElementById('btn-logout').addEventListener('click', async () => {
+            try {
+                if (ordersUnsubscribe) {
+                    ordersUnsubscribe();
+                    ordersUnsubscribe = null;
+                }
+                await signOut(auth);
+                showToast('Você saiu da sua conta.', 'info');
+            } catch (err) {
+                showToast(translateFirebaseError(err), 'error');
+            }
+        });
+
+        // ==========================================================
+        // OBSERVADOR DE ESTADO DE AUTENTICAÇÃO (FIREBASE AUTH)
+        // ==========================================================
+        onAuthStateChanged(auth, async (user) => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const authScreen = document.getElementById('auth-screen');
+            const appScreen = document.getElementById('app-screen');
+            const headerUserArea = document.getElementById('header-user-area');
+
+            loadingScreen.classList.add('hidden');
+
+            if (!user) {
+                currentUser = null;
+                currentUserRole = null;
+                initialLoadComplete = false;
+                knownWaitingIds.clear();
+
+                authScreen.classList.remove('hidden');
+                appScreen.classList.add('hidden');
+                headerUserArea.classList.add('hidden');
+                lucide.createIcons();
+                return;
+            }
+
+            // Determinar papel do usuário
+            const intendedRole = localStorage.getItem('etregue_intended_role');
+            const isAuthorizedCourierEmail = (user.email || '').toLowerCase() === AUTHORIZED_COURIER_EMAIL.toLowerCase();
+
+            if (intendedRole === 'entregador' && !isAuthorizedCourierEmail) {
+                await signOut(auth);
+                showAuthError(`Acesso negado! Apenas ${AUTHORIZED_COURIER_EMAIL} pode acessar como Entregador.`);
+                return;
+            }
+
+            // Se o e-mail for o oficial e não escolheu explicitamente vendedor, entra como entregador
+            const resolvedRole = (intendedRole === 'vendedor') ? 'vendedor' : (isAuthorizedCourierEmail ? 'entregador' : 'vendedor');
+
+            currentUser = user;
+            currentUserRole = resolvedRole;
+
+            // Garantir que o perfil esteja gravado no RTDB
+            try {
+                await saveUserProfile(user, resolvedRole);
+            } catch (e) {
+                console.warn('Aviso ao sincronizar perfil no RTDB:', e.message);
+            }
+
+            // Atualizar Cabeçalho
+            const displayName = user.displayName || (resolvedRole === 'entregador' ? 'Entregador Oficial' : user.email.split('@')[0]);
+            document.getElementById('header-user-name').textContent = displayName;
+            document.getElementById('header-user-email').textContent = user.email;
+
+            const roleBadge = document.getElementById('header-role-badge');
+            if (resolvedRole === 'entregador') {
+                roleBadge.textContent = 'Entregador Oficial';
+                roleBadge.className = 'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+            } else {
+                roleBadge.textContent = 'Vendedor';
+                roleBadge.className = 'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+            }
+
+            // Alternar Telas
+            authScreen.classList.add('hidden');
+            appScreen.classList.remove('hidden');
+            headerUserArea.classList.remove('hidden');
+
+            const viewSeller = document.getElementById('view-seller');
+            const viewCourier = document.getElementById('view-courier');
+
+            if (resolvedRole === 'entregador') {
+                viewSeller.classList.add('hidden');
+                viewCourier.classList.remove('hidden');
+            } else {
+                document.getElementById('seller-welcome-name').textContent = displayName;
+                viewCourier.classList.add('hidden');
+                viewSeller.classList.remove('hidden');
+            }
+
+            // Iniciar listener em tempo real do nó /pedidos
+            startRealtimeOrdersListener();
+            lucide.createIcons();
+        });
+
+        // ==========================================================
+        // LISTENER EM TEMPO REAL NO FIREBASE REALTIME DATABASE (/pedidos)
+        // ==========================================================
+        function startRealtimeOrdersListener() {
+            if (ordersUnsubscribe) {
+                ordersUnsubscribe();
+            }
+
+            const pedidosRef = ref(db, 'pedidos');
+            ordersUnsubscribe = onValue(pedidosRef, (snapshot) => {
+                const data = snapshot.val();
+                const loaded = [];
+
+                if (data) {
+                    Object.entries(data).forEach(([key, val]) => {
+                        loaded.push({
+                            id: key,
+                            ...val
+                        });
+                    });
+                }
+
+                // Ordenar do mais recente para o mais antigo por padrão
+                loaded.sort((a, b) => (b.criadoEm || 0) - (a.criadoEm || 0));
+
+                // Alerta sonoro e visual para o entregador quando chegar pedido novo em tempo real
+                if (currentUserRole === 'entregador') {
+                    const currentWaiting = loaded.filter(o => o.status === 'aguardando');
+                    if (initialLoadComplete) {
+                        const hasNewOrder = currentWaiting.some(o => !knownWaitingIds.has(o.id));
+                        if (hasNewOrder) {
+                            playNewOrderChime();
+                            showToast('Novo pedido de entrega chegou no mural!', 'warning');
+                        }
+                    }
+                    knownWaitingIds = new Set(currentWaiting.map(o => o.id));
+                }
+
+                initialLoadComplete = true;
+                allOrders = loaded;
+                window.renderDashboard();
+            }, (error) => {
+                showToast(translateFirebaseError(error), 'error');
+            });
+        }
+
+        // ==========================================================
+        // AÇÕES DO VENDEDOR NO REALTIME DATABASE
+        // ==========================================================
+        document.getElementById('new-order-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const descricao = document.getElementById('product-desc').value.trim();
+            const origem = document.getElementById('pickup-location').value.trim();
+            const destino = document.getElementById('delivery-location').value.trim();
+            const preco = parseCurrencyInput(document.getElementById('offer-price').value);
+
+            if (!descricao || !origem || !destino) {
+                showToast('Preencha todos os campos obrigatórios do pedido.', 'error');
+                return;
+            }
+            if (preco <= 0) {
+                showToast('Informe um preço válido maior que R$ 0,00.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btn-publish-order');
+            btn.disabled = true;
+            btn.classList.add('opacity-70');
+
+            try {
+                const pedidosRef = ref(db, 'pedidos');
+                const novoPedidoRef = push(pedidosRef);
+
+                await set(novoPedidoRef, {
+                    codigo: 'ETG-' + Math.floor(1000 + Math.random() * 9000),
+                    descricao,
+                    origem,
+                    destino,
+                    preco,
+                    status: 'aguardando',
+                    vendedorUid: currentUser.uid,
+                    vendedorNome: currentUser.displayName || currentUser.email.split('@')[0],
+                    vendedorEmail: currentUser.email,
+                    entregadorUid: null,
+                    entregadorNome: null,
+                    entregadorEmail: null,
+                    criadoEm: serverTimestamp()
+                });
+
+                e.target.reset();
+                showToast('Pedido publicado em tempo real! O entregador já pode visualizar.', 'success');
+            } catch (err) {
+                showToast(translateFirebaseError(err), 'error');
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-70');
+            }
+        });
+
+        // Cancelar pedido ainda aguardando
+        window.requestCancelOrder = (orderId) => {
+            const order = allOrders.find(o => o.id === orderId);
+            if (!order || order.status !== 'aguardando') return;
+
+            orderIdToCancel = orderId;
+            const modal = document.getElementById('confirm-modal');
+            document.getElementById('modal-message').innerHTML = `Deseja realmente cancelar o pedido <strong>${escapeHtml(order.codigo || order.id)}</strong> (${escapeHtml(order.descricao)})?`;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        document.getElementById('modal-cancel-btn').addEventListener('click', () => {
+            orderIdToCancel = null;
+            const modal = document.getElementById('confirm-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        });
+
+        document.getElementById('modal-confirm-btn').addEventListener('click', async () => {
+            if (orderIdToCancel) {
+                try {
+                    await remove(ref(db, `pedidos/${orderIdToCancel}`));
+                    showToast('Pedido cancelado e removido com sucesso.', 'info');
+                } catch (err) {
+                    showToast(translateFirebaseError(err), 'error');
+                }
+                orderIdToCancel = null;
+            }
+            const modal = document.getElementById('confirm-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        });
+
+        // ==========================================================
+        // AÇÕES DO ENTREGADOR NO REALTIME DATABASE
+        // ==========================================================
+        window.acceptOrder = async (orderId) => {
+            if (!currentUser || currentUserRole !== 'entregador') return;
+
+            try {
+                const orderRef = ref(db, `pedidos/${orderId}`);
+                await update(orderRef, {
+                    status: 'aceito',
+                    entregadorUid: currentUser.uid,
+                    entregadorEmail: currentUser.email,
+                    entregadorNome: currentUser.displayName || 'Entregador Oficial',
+                    aceitoEm: serverTimestamp()
+                });
+                showToast('Corrida aceita! Dirija-se ao local de retirada.', 'warning');
+            } catch (err) {
+                showToast(translateFirebaseError(err), 'error');
+            }
+        };
+
+        window.advanceOrderStatus = async (orderId, nextStatus) => {
+            if (!currentUser || currentUserRole !== 'entregador') return;
+
+            try {
+                const orderRef = ref(db, `pedidos/${orderId}`);
+                const updates = { status: nextStatus };
+                if (nextStatus === 'coletado') updates.coletadoEm = serverTimestamp();
+                if (nextStatus === 'entregue') updates.entregueEm = serverTimestamp();
+
+                await update(orderRef, updates);
+
+                if (nextStatus === 'coletado') {
+                    showToast('Coleta confirmada! Siga para o local de entrega.', 'info');
+                } else if (nextStatus === 'entregue') {
+                    showToast('Entrega finalizada com sucesso!', 'success');
+                }
+            } catch (err) {
+                showToast(translateFirebaseError(err), 'error');
+            }
+        };
+
+        // ==========================================================
+        // RENDERIZAÇÃO DAS TELAS (VENDEDOR E ENTREGADOR)
+        // ==========================================================
+        function getStatusBadge(status) {
+            switch (status) {
+                case 'aguardando':
+                    return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                Aguardando Entregador
+                            </span>`;
+                case 'aceito':
+                    return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                <i data-lucide="bike" class="w-3.5 h-3.5"></i>
+                                Aceito • Indo Coletar
+                            </span>`;
+                case 'coletado':
+                    return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">
+                                <i data-lucide="truck" class="w-3.5 h-3.5"></i>
+                                Produto Coletado • Em Rota
+                            </span>`;
+                case 'entregue':
+                    return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                                Entregue
+                            </span>`;
+                default:
+                    return '';
+            }
+        }
+
+        window.renderDashboard = () => {
+            if (!currentUser) return;
+            if (currentUserRole === 'entregador') {
+                renderCourierDashboard();
+            } else {
+                renderSellerDashboard();
+            }
+            lucide.createIcons();
+        };
+
+        // Renderizar Painel do Vendedor
+        function renderSellerDashboard() {
+            const container = document.getElementById('seller-orders-list');
+            const filter = document.getElementById('seller-filter').value;
+
+            const myOrders = allOrders.filter(o => o.vendedorUid === currentUser.uid);
+            const activeCount = myOrders.filter(o => o.status !== 'entregue').length;
+
+            document.getElementById('seller-total-orders').textContent = myOrders.length;
+            document.getElementById('seller-active-orders').textContent = activeCount;
+
+            let filtered = myOrders;
+            if (filter === 'ACTIVE') {
+                filtered = myOrders.filter(o => o.status !== 'entregue');
+            } else if (filter === 'DELIVERED') {
+                filtered = myOrders.filter(o => o.status === 'entregue');
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                            <i data-lucide="package-open" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-800">Nenhum pedido encontrado</h3>
+                        <p class="text-sm text-slate-500 mt-1 max-w-sm mx-auto">Preencha o formulário ao lado para enviar seu pedido ao entregador em tempo real.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(order => `
+                <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition p-5 space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">${escapeHtml(order.codigo || 'PEDIDO')}</span>
+                            <span class="text-xs text-slate-400">${formatRelativeTime(order.criadoEm)}</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            ${getStatusBadge(order.status)}
+                            <span class="text-base font-extrabold text-emerald-600">${formatCurrency(order.preco)}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-3">
+                        <div class="p-2 bg-indigo-50 text-indigo-600 rounded-xl shrink-0 mt-0.5">
+                            <i data-lucide="box" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Produto</p>
+                            <p class="text-sm font-bold text-slate-900">${escapeHtml(order.descricao)}</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-3.5 space-y-3 border border-slate-100">
+                        <div class="flex items-start gap-3">
+                            <div class="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
+                                <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Local de Retirada</p>
+                                <p class="text-xs sm:text-sm font-medium text-slate-800 break-words">${escapeHtml(order.origem)}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3">
+                            <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                                <i data-lucide="flag" class="w-3.5 h-3.5"></i>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Local de Entrega</p>
+                                <p class="text-xs sm:text-sm font-medium text-slate-800 break-words">${escapeHtml(order.destino)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${order.entregadorNome ? `
+                        <div class="flex items-center gap-2 text-xs font-medium text-indigo-700 bg-indigo-50/70 px-3 py-2 rounded-xl border border-indigo-100">
+                            <i data-lucide="bike" class="w-4 h-4 shrink-0"></i>
+                            <span>Entregador responsável: <strong>${escapeHtml(order.entregadorNome)}</strong> (${escapeHtml(order.entregadorEmail || '')})</span>
+                        </div>
+                    ` : ''}
+
+                    <!-- Timeline de Status -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                        <div class="flex flex-wrap items-center gap-1.5 text-xs">
+                            <span class="px-2 py-0.5 rounded font-medium ${order.status === 'aguardando' ? 'bg-amber-100 text-amber-800 font-bold' : 'text-slate-400'}">1. Aguardando</span>
+                            <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-300"></i>
+                            <span class="px-2 py-0.5 rounded font-medium ${order.status === 'aceito' ? 'bg-indigo-100 text-indigo-800 font-bold' : 'text-slate-400'}">2. Aceito</span>
+                            <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-300"></i>
+                            <span class="px-2 py-0.5 rounded font-medium ${order.status === 'coletado' ? 'bg-orange-100 text-orange-800 font-bold' : 'text-slate-400'}">3. Coletado</span>
+                            <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-300"></i>
+                            <span class="px-2 py-0.5 rounded font-medium ${order.status === 'entregue' ? 'bg-emerald-100 text-emerald-800 font-bold' : 'text-slate-400'}">4. Entregue</span>
+                        </div>
+
+                        ${order.status === 'aguardando' ? `
+                            <button onclick="requestCancelOrder('${order.id}')" class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200/70 transition cursor-pointer shrink-0">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                <span>Cancelar Pedido</span>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Renderizar Painel do Entregador
+        function renderCourierDashboard() {
+            const activeListEl = document.getElementById('courier-active-list');
+            const availableListEl = document.getElementById('courier-available-list');
+            const sortBy = document.getElementById('courier-sort').value;
+
+            const deliveredOrders = allOrders.filter(o => o.status === 'entregue');
+            const activeOrders = allOrders.filter(o => o.status === 'aceito' || o.status === 'coletado');
+            let availableOrders = allOrders.filter(o => o.status === 'aguardando');
+
+            const totalEarnings = deliveredOrders.reduce((sum, item) => sum + Number(item.preco || 0), 0);
+
+            document.getElementById('courier-earnings').textContent = formatCurrency(totalEarnings);
+            document.getElementById('courier-active-count').textContent = activeOrders.length;
+            document.getElementById('courier-available-count').textContent = availableOrders.length;
+
+            if (sortBy === 'HIGHEST_PRICE') {
+                availableOrders.sort((a, b) => (b.preco || 0) - (a.preco || 0));
+            } else {
+                availableOrders.sort((a, b) => (b.criadoEm || 0) - (a.criadoEm || 0));
+            }
+
+            // 1. Minhas Entregas em Andamento
+            if (activeOrders.length === 0) {
+                activeListEl.innerHTML = `
+                    <div class="col-span-full bg-white rounded-2xl border border-dashed border-slate-300 p-6 text-center flex flex-col sm:flex-row items-center justify-center gap-3">
+                        <div class="p-2.5 bg-slate-100 text-slate-400 rounded-xl">
+                            <i data-lucide="navigation-off" class="w-5 h-5"></i>
+                        </div>
+                        <p class="text-sm text-slate-500">Nenhuma entrega em andamento agora. Aceite um pedido no mural abaixo!</p>
+                    </div>
+                `;
+            } else {
+                activeListEl.innerHTML = activeOrders.map(order => {
+                    const isAccepted = order.status === 'aceito';
+                    return `
+                        <div class="bg-white rounded-2xl border-2 ${isAccepted ? 'border-indigo-500/70' : 'border-orange-500/70'} shadow-md p-5 flex flex-col justify-between gap-4">
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg">${escapeHtml(order.codigo || 'PEDIDO')}</span>
+                                        ${getStatusBadge(order.status)}
+                                    </div>
+                                    <span class="text-lg font-extrabold text-emerald-600">${formatCurrency(order.preco)}</span>
+                                </div>
+
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-400 uppercase">Vendedor: <span class="text-slate-700">${escapeHtml(order.vendedorNome || 'Loja')}</span></p>
+                                    <p class="text-sm font-bold text-slate-900 mt-1">${escapeHtml(order.descricao)}</p>
+                                </div>
+
+                                <div class="space-y-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                                    <div class="flex items-start gap-2.5 ${!isAccepted ? 'opacity-60' : ''}">
+                                        <i data-lucide="map-pin" class="w-4 h-4 text-orange-500 shrink-0 mt-0.5"></i>
+                                        <div>
+                                            <span class="text-[11px] font-bold uppercase text-slate-400 block">1. Local de Retirada</span>
+                                            <span class="text-xs sm:text-sm font-medium text-slate-800">${escapeHtml(order.origem)}</span>
+                                        </div>
+                                    </div>
+                                    <div class="border-t border-slate-200/70 my-1"></div>
+                                    <div class="flex items-start gap-2.5">
+                                        <i data-lucide="navigation" class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5"></i>
+                                        <div>
+                                            <span class="text-[11px] font-bold uppercase text-slate-400 block">2. Local de Entrega</span>
+                                            <span class="text-xs sm:text-sm font-medium text-slate-800">${escapeHtml(order.destino)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pt-1">
+                                ${isAccepted ? `
+                                    <button onclick="advanceOrderStatus('${order.id}', 'coletado')" class="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold py-3 px-4 rounded-xl shadow-sm transition cursor-pointer">
+                                        <i data-lucide="package-check" class="w-5 h-5"></i>
+                                        <span>Confirmar Coleta</span>
+                                    </button>
+                                ` : `
+                                    <button onclick="advanceOrderStatus('${order.id}', 'entregue')" class="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold py-3 px-4 rounded-xl shadow-sm transition cursor-pointer">
+                                        <i data-lucide="check-circle" class="w-5 h-5"></i>
+                                        <span>Finalizar Entrega (${formatCurrency(order.preco)})</span>
+                                    </button>
+                                `}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // 2. Mural de Pedidos Disponíveis
+            if (availableOrders.length === 0) {
+                availableListEl.innerHTML = `
+                    <div class="col-span-full bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                            <i data-lucide="inbox" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-800">Nenhum pedido aguardando no momento</h3>
+                        <p class="text-sm text-slate-500 mt-1">Assim que um vendedor cadastrar um pedido, ele aparecerá aqui instantaneamente.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            availableListEl.innerHTML = availableOrders.map(order => `
+                <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-lg hover:border-emerald-300 transition-all p-5 flex flex-col justify-between gap-4">
+                    <div class="space-y-4">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <span class="inline-block text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full mb-1">
+                                    Valor da Entrega
+                                </span>
+                                <div class="text-2xl font-extrabold text-emerald-600 tracking-tight">
+                                    ${formatCurrency(order.preco)}
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg block">${escapeHtml(order.codigo || 'NOVO')}</span>
+                                <span class="text-[11px] text-slate-400 mt-1 block">${formatRelativeTime(order.criadoEm)}</span>
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/70 space-y-1">
+                            <div class="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+                                <span class="flex items-center gap-1"><i data-lucide="store" class="w-3 h-3 text-indigo-500"></i> ${escapeHtml(order.vendedorNome || 'Vendedor')}</span>
+                            </div>
+                            <p class="text-sm font-bold text-slate-900 leading-snug pt-0.5">${escapeHtml(order.descricao)}</p>
+                        </div>
+
+                        <div class="space-y-3 pt-1">
+                            <div class="flex items-start gap-2.5">
+                                <div class="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
+                                    <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Local de Coleta</p>
+                                    <p class="text-xs sm:text-sm font-medium text-slate-800 leading-snug">${escapeHtml(order.origem)}</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-2.5">
+                                <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                                    <i data-lucide="flag" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Local de Entrega</p>
+                                    <p class="text-xs sm:text-sm font-medium text-slate-800 leading-snug">${escapeHtml(order.destino)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100">
+                        <button onclick="acceptOrder('${order.id}')" class="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-emerald-600 active:scale-[0.99] text-white font-bold py-3 px-4 rounded-xl shadow-sm transition-colors duration-200 cursor-pointer">
+                            <i data-lucide="bike" class="w-4 h-4"></i>
+                            <span>Aceitar Corrida</span>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Inicializar ícones no carregamento
+        lucide.createIcons();
+    </script>
+</body>
+</html>
